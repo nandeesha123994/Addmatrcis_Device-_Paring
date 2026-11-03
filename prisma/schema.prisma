@@ -1,0 +1,899 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider               = "prisma-client-js"
+  generatedFileExtension = "js"
+  importFileExtension    = "js"
+  moduleFormat           = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model PlatformEmployee {
+  id                    String                 @id @default(uuid())
+  employeeId            String                 @unique
+  firstName             String
+  lastName              String
+  officialEmail         String                 @unique
+  mobileNumber          String?
+  userId                String?                @unique
+  user                  User?                  @relation(fields: [userId], references: [id])
+  photoUrl              String?
+  aadharNumberEncrypted String?
+  status                PlatformEmployeeStatus @default(ACTIVE)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  invitationsSent         Invitation[]             @relation("InvitedBy")
+  vendorAllocations       VendorAllocatedClinic[]
+  mousSigned              Mou[]                    @relation("ComplianceManager")
+  installationRequests    InstallationRequest[]
+  installationAssignments InstallationAssignment[]
+  moderationResults       ModerationResult[]
+
+  @@index([status])
+  @@map("platform_employees")
+}
+
+model Invitation {
+  id                    String               @id @default(uuid())
+  targetType            InvitationTargetType
+  contactName           String
+  organisationName      String
+  email                 String
+  mobileNumber          String?
+  invitedById           String?
+  employeeId            String?
+  firstName             String?
+  lastName              String?
+  roleCode              String?
+  otpCodeHash           String?
+  otpExpiresAt          DateTime?
+  tokenHash             String?              @unique
+  expiresAt             DateTime?
+  otpAttemptCount       Int                  @default(0)
+  lastOtpSentAt         DateTime?
+  otpLockedUntil        DateTime?
+  verificationTokenHash String?              @unique
+  verificationExpiresAt DateTime?
+  status                InvitationStatus     @default(INVITED)
+  invitedAt             DateTime             @default(now())
+  signedUpAt            DateTime?
+
+  invitedBy  PlatformEmployee? @relation("InvitedBy", fields: [invitedById], references: [id])
+  clinic     Clinic?
+  advertiser Advertiser?
+
+  @@index([status])
+  @@index([email])
+  @@index([email, status])
+  @@index([employeeId])
+  @@map("invitations")
+}
+
+model Clinic {
+  id                        String       @id @default(uuid())
+  userId                    String?      @unique
+  user                      User?        @relation(fields: [userId], references: [id])
+  invitationId              String?      @unique
+  clinicName                String
+  contactPersonName         String
+  designation               String?
+  medicalRegistrationNumber String
+  establishmentYear         Int?
+  gstNumber                 String?
+  panNumber                 String?
+  clinicLicenseNumber       String
+  mobileNumber              String
+  mobileVerified            Boolean      @default(false)
+  email                     String       @unique
+  emailVerified             Boolean      @default(false)
+  address                   String
+  street                    String?
+  city                      String
+  state                     String
+  country                   String
+  pincode                   String
+  latitude                  Decimal?     @db.Decimal(9, 6)
+  longitude                 Decimal?     @db.Decimal(9, 6)
+  openingTime               DateTime?
+  closingTime               DateTime?
+  status                    ClinicStatus @default(PENDING_VERIFICATION)
+  createdAt                 DateTime     @default(now())
+  updatedAt                 DateTime     @updatedAt
+
+  invitation              Invitation?              @relation(fields: [invitationId], references: [id])
+  specialities            ClinicSpeciality[]
+  workingDays             ClinicWorkingDay[]
+  sessions                ClinicSession[]
+  photos                  ClinicPhoto[]
+  vendorAllocations       VendorAllocatedClinic[]
+  mou                     Mou?
+  installationRequests    InstallationRequest[]
+  installationAssignments InstallationAssignment[]
+  devices                 Device[]
+  schedules               Schedule[]
+  adClinicExposures       AdClinicExposure[]
+
+  @@index([status])
+  @@map("clinics")
+}
+
+model ClinicSpeciality {
+  id        String @id @default(uuid())
+  clinicId  String
+  specialty String
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@map("clinic_specialities")
+}
+
+model ClinicWorkingDay {
+  id        String    @id @default(uuid())
+  clinicId  String
+  dayOfWeek DayOfWeek
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@map("clinic_working_days")
+}
+
+model ClinicSession {
+  id          String   @id @default(uuid())
+  clinicId    String
+  sessionName String
+  startTime   DateTime
+  endTime     DateTime
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@map("clinic_sessions")
+}
+
+model ClinicPhoto {
+  id         String          @id @default(uuid())
+  clinicId   String
+  photoType  ClinicPhotoType
+  photoUrl   String
+  uploadedAt DateTime        @default(now())
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@map("clinic_photos")
+}
+
+model Vendor {
+  userId         String?      @unique
+  user           User?        @relation(fields: [userId], references: [id])
+  id             String       @id @default(uuid())
+  companyName    String
+  gstNumber      String?
+  panNumber      String?
+  ownerName      String
+  mobileNumber   String
+  mobileVerified Boolean      @default(false)
+  email          String       @unique
+  emailVerified  Boolean      @default(false)
+  website        String?
+  address        String
+  street         String?
+  city           String
+  state          String
+  country        String
+  pincode        String
+  latitude       Decimal?     @db.Decimal(9, 6)
+  longitude      Decimal?     @db.Decimal(9, 6)
+  status         VendorStatus @default(PENDING_VERIFICATION)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  allocatedClinics        VendorAllocatedClinic[]
+  downtimes               VendorDowntime[]
+  installationAssignments InstallationAssignment[]
+  installationOtps        InstallationOtp[]
+  devices                 Device[]
+
+  @@index([status])
+  @@map("vendors")
+}
+
+model VendorAllocatedClinic {
+  id          String   @id @default(uuid())
+  vendorId    String
+  clinicId    String
+  allocatedBy String?
+  allocatedAt DateTime @default(now())
+
+  vendor    Vendor            @relation(fields: [vendorId], references: [id])
+  clinic    Clinic            @relation(fields: [clinicId], references: [id])
+  allocator PlatformEmployee? @relation(fields: [allocatedBy], references: [id])
+
+  @@unique([vendorId, clinicId])
+  @@index([clinicId])
+  @@map("vendor_allocated_clinics")
+}
+
+model VendorDowntime {
+  id        String   @id @default(uuid())
+  vendorId  String
+  startTime DateTime
+  endTime   DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+
+  vendor Vendor @relation(fields: [vendorId], references: [id])
+
+  @@index([vendorId])
+  @@map("vendor_downtime")
+}
+
+model Advertiser {
+  userId         String?          @unique
+  user           User?            @relation(fields: [userId], references: [id])
+  id             String           @id @default(uuid())
+  invitationId   String?          @unique
+  companyName    String
+  gstNumber      String?
+  panNumber      String?
+  businessSector String?
+  website        String?
+  keyPersonName  String
+  designation    String?
+  mobileNumber   String
+  mobileVerified Boolean          @default(false)
+  email          String
+  emailVerified  Boolean          @default(false)
+  address        String
+  street         String?
+  city           String
+  state          String
+  country        String
+  pincode        String
+  latitude       Decimal?         @db.Decimal(9, 6)
+  longitude      Decimal?         @db.Decimal(9, 6)
+  status         AdvertiserStatus @default(PENDING_VERIFICATION)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  invitation     Invitation?     @relation(fields: [invitationId], references: [id])
+  advertisements Advertisement[]
+  payments       Payment[]
+  reportExports  ReportExport[]
+
+  @@index([status])
+  @@index([email])
+  @@map("advertisers")
+}
+
+model Mou {
+  id                  String    @id @default(uuid())
+  clinicId            String    @unique
+  doctorSignedAt      DateTime?
+  complianceManagerId String?
+  complianceSignedAt  DateTime?
+  status              MouStatus @default(PENDING)
+  signedDocUrl        String?
+  validFrom           DateTime?
+  validTo             DateTime?
+  createdAt           DateTime  @default(now())
+
+  clinic            Clinic            @relation(fields: [clinicId], references: [id])
+  complianceManager PlatformEmployee? @relation("ComplianceManager", fields: [complianceManagerId], references: [id])
+
+  @@index([status])
+  @@map("mous")
+}
+
+model InstallationRequest {
+  id                String                    @id @default(uuid())
+  clinicId          String
+  requestedById     String
+  preferredDate     DateTime?
+  preferredTimeSlot String?
+  status            InstallationRequestStatus @default(REQUESTED)
+  requestedAt       DateTime                  @default(now())
+  submittedAt       DateTime?
+
+  clinic      Clinic                  @relation(fields: [clinicId], references: [id])
+  requestedBy PlatformEmployee        @relation(fields: [requestedById], references: [id])
+  assignment  InstallationAssignment?
+
+  @@index([clinicId])
+  @@index([status])
+  @@map("installation_requests")
+}
+
+model InstallationAssignment {
+  id                    String                       @id @default(uuid())
+  installationRequestId String                       @unique
+  clinicId              String
+  vendorId              String
+  assignedById          String
+  scheduledDate         DateTime
+  scheduledTime         DateTime
+  supportContactNumber  String
+  testStatus            InstallationTestStatus       @default(NOT_TESTED)
+  testedAt              DateTime?
+  status                InstallationAssignmentStatus @default(ASSIGNED)
+  assignedAt            DateTime                     @default(now())
+  completedAt           DateTime?
+
+  installationRequest InstallationRequest @relation(fields: [installationRequestId], references: [id])
+  clinic              Clinic              @relation(fields: [clinicId], references: [id])
+  vendor              Vendor              @relation(fields: [vendorId], references: [id])
+  assignedBy          PlatformEmployee    @relation(fields: [assignedById], references: [id])
+  otps                InstallationOtp[]
+
+  @@index([clinicId])
+  @@index([vendorId])
+  @@index([status])
+  @@map("installation_assignments")
+}
+
+model InstallationOtp {
+  id                       String                @id @default(uuid())
+  installationAssignmentId String
+  otpCodeHash              String
+  generatedAt              DateTime              @default(now())
+  sentToMobile             String
+  completionPhotoUrl       String?
+  confirmedByVendorId      String?
+  confirmedAt              DateTime?
+  status                   InstallationOtpStatus @default(PENDING)
+
+  installationAssignment InstallationAssignment @relation(fields: [installationAssignmentId], references: [id])
+  confirmedByVendor      Vendor?                @relation(fields: [confirmedByVendorId], references: [id])
+
+  @@index([installationAssignmentId])
+  @@index([status])
+  @@map("installation_otps")
+}
+
+model Device {
+  id            String              @id @default(uuid())
+  vendorId      String
+  clinicId      String
+  pairingCode   String?
+  pairingStatus DevicePairingStatus @default(PENDING_PAIRING)
+  certSerial    String?
+  certNotAfter  DateTime?
+  revoked       Boolean             @default(false)
+  lastSeenAt    DateTime?
+  createdAt     DateTime            @default(now())
+
+  vendor    Vendor     @relation(fields: [vendorId], references: [id])
+  clinic    Clinic     @relation(fields: [clinicId], references: [id])
+  schedules Schedule[]
+  playLogs  PlayLog[]
+
+  @@index([clinicId])
+  @@index([vendorId])
+  @@index([pairingStatus])
+  @@map("devices")
+}
+
+model AdCategory {
+  id   String @id @default(uuid())
+  name String @unique
+
+  advertisements Advertisement[]
+
+  @@map("ad_categories")
+}
+
+model PricingPlan {
+  id           String   @id @default(uuid())
+  name         String
+  durationDays Int      @default(26)
+  price        Decimal  @db.Decimal(10, 2)
+  createdAt    DateTime @default(now())
+
+  advertisements Advertisement[]
+
+  @@map("pricing_plans")
+}
+
+model Advertisement {
+  id               String                        @id @default(uuid())
+  advertiserId     String
+  categoryId       String
+  pricingPlanId    String
+  title            String
+  rawAssetUrl      String
+  encodedUrl       String?
+  version          Int                           @default(1)
+  moderationStatus AdvertisementModerationStatus @default(SUBMITTED)
+  status           AdvertisementStatus           @default(DRAFT)
+  publishedAt      DateTime?
+  createdAt        DateTime                      @default(now())
+
+  advertiser        Advertiser         @relation(fields: [advertiserId], references: [id])
+  category          AdCategory         @relation(fields: [categoryId], references: [id])
+  pricingPlan       PricingPlan        @relation(fields: [pricingPlanId], references: [id])
+  vouchers          AdVoucher[]
+  moderationResults ModerationResult[]
+  encodingJobs      EncodingJob[]
+  schedules         Schedule[]
+  adClinicExposures AdClinicExposure[]
+  playLogs          PlayLog[]
+  payments          Payment[]
+
+  @@index([status])
+  @@index([moderationStatus])
+  @@index([advertiserId])
+  @@map("advertisements")
+}
+
+model AdVoucher {
+  id              String      @id @default(uuid())
+  advertisementId String
+  voucherType     VoucherType
+  voucherCode     String?
+  formFields      Json?
+  redemptionCount Int         @default(0)
+  createdAt       DateTime    @default(now())
+
+  advertisement Advertisement @relation(fields: [advertisementId], references: [id], onDelete: Cascade)
+
+  @@index([advertisementId])
+  @@map("ad_vouchers")
+}
+
+model ModerationResult {
+  id               String             @id @default(uuid())
+  advertisementId  String
+  source           ModerationSource
+  decision         ModerationDecision
+  confidenceScores Json?
+  reviewerId       String?
+  reason           String?
+  decidedAt        DateTime           @default(now())
+
+  advertisement Advertisement     @relation(fields: [advertisementId], references: [id])
+  reviewer      PlatformEmployee? @relation(fields: [reviewerId], references: [id])
+
+  @@index([advertisementId])
+  @@map("moderation_results")
+}
+
+model EncodingJob {
+  id                String            @id @default(uuid())
+  advertisementId   String
+  mediaconvertJobId String?
+  status            EncodingJobStatus @default(QUEUED)
+  outputUrls        Json?
+  errorReason       String?
+  startedAt         DateTime?
+  completedAt       DateTime?
+
+  advertisement Advertisement @relation(fields: [advertisementId], references: [id])
+
+  @@index([advertisementId])
+  @@index([status])
+  @@map("encoding_jobs")
+}
+
+model Schedule {
+  id              String   @id @default(uuid())
+  advertisementId String
+  deviceId        String
+  clinicId        String
+  playDate        DateTime
+  priority        Int      @default(0)
+
+  advertisement Advertisement @relation(fields: [advertisementId], references: [id])
+  device        Device        @relation(fields: [deviceId], references: [id])
+  clinic        Clinic        @relation(fields: [clinicId], references: [id])
+
+  @@unique([advertisementId, clinicId, playDate])
+  @@index([playDate])
+  @@index([clinicId, playDate])
+  @@index([deviceId])
+  @@map("schedules")
+}
+
+model AdClinicExposure {
+  advertisementId String
+  clinicId        String
+  timesShown      Int       @default(0)
+  lastShownAt     DateTime?
+
+  advertisement Advertisement @relation(fields: [advertisementId], references: [id])
+  clinic        Clinic        @relation(fields: [clinicId], references: [id])
+
+  @@id([advertisementId, clinicId])
+  @@index([lastShownAt])
+  @@map("ad_clinic_exposure")
+}
+
+model PlayLog {
+  id               String               @id @default(uuid())
+  deviceId         String
+  advertisementId  String
+  playedAt         DateTime
+  durationMs       Int
+  completionStatus PlayCompletionStatus
+
+  device        Device        @relation(fields: [deviceId], references: [id])
+  advertisement Advertisement @relation(fields: [advertisementId], references: [id])
+
+  @@index([deviceId, playedAt])
+  @@index([advertisementId, playedAt])
+  @@map("play_logs")
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  advertiserId    String
+  advertisementId String
+  amount          Decimal       @db.Decimal(10, 2)
+  status          PaymentStatus @default(PENDING)
+  gatewayRef      String?
+  invoiceUrl      String?
+  createdAt       DateTime      @default(now())
+
+  advertiser    Advertiser    @relation(fields: [advertiserId], references: [id])
+  advertisement Advertisement @relation(fields: [advertisementId], references: [id])
+
+  @@index([advertiserId])
+  @@index([status])
+  @@map("payments")
+}
+
+model ReportExport {
+  id             String   @id @default(uuid())
+  advertiserId   String
+  reportType     String
+  dateRangeStart DateTime
+  dateRangeEnd   DateTime
+  fileUrl        String
+  generatedAt    DateTime @default(now())
+
+  advertiser Advertiser @relation(fields: [advertiserId], references: [id])
+
+  @@index([advertiserId])
+  @@map("report_exports")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  entity     String
+  entityId   String
+  fromStatus String?
+  toStatus   String?
+  changedAt  DateTime @default(now())
+  metadata   Json?
+
+  @@index([entity, entityId])
+  @@index([changedAt])
+  @@map("audit_log")
+}
+
+enum PlatformEmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum InvitationTargetType {
+  CLINIC
+  ADVERTISER
+  EMPLOYEE
+}
+
+enum InvitationStatus {
+  INVITED
+  OTP_VERIFIED
+  SIGNED_UP
+  EXPIRED
+}
+
+enum ClinicStatus {
+  PENDING_VERIFICATION
+  APPROVED
+  MOU_PENDING
+  MOU_SIGNED
+  ONBOARDED
+  REJECTED
+}
+
+enum DayOfWeek {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+enum ClinicPhotoType {
+  ENTRANCE
+  RECEPTION
+  INSTALLATION_PROOF
+  OTHER
+}
+
+enum VendorStatus {
+  PENDING_VERIFICATION
+  APPROVED
+  ACTIVE
+  SUSPENDED
+}
+
+enum AdvertiserStatus {
+  PENDING_VERIFICATION
+  APPROVED
+}
+
+enum MouStatus {
+  PENDING
+  MOU_PENDING
+  MOU_SIGNED
+}
+
+enum InstallationRequestStatus {
+  REQUESTED
+  TIME_SUBMITTED
+}
+
+enum InstallationTestStatus {
+  NOT_TESTED
+  PASSED
+  FAILED
+}
+
+enum InstallationAssignmentStatus {
+  ASSIGNED
+  INSTALLATION_STARTED
+  TEST_PENDING
+  COMPLETION_PENDING
+  COMPLETED
+}
+
+enum InstallationOtpStatus {
+  PENDING
+  CONFIRMED
+  EXPIRED
+}
+
+enum DevicePairingStatus {
+  PENDING_PAIRING
+  LINKED
+  PROVISIONED
+}
+
+enum AdvertisementModerationStatus {
+  SUBMITTED
+  AUTO_REJECTED
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum AdvertisementStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PUBLISHING
+  ENCODING
+  ENCODING_FAILED
+  LIVE
+}
+
+enum VoucherType {
+  VOUCHER_CODE
+  LEAD_FORM
+}
+
+enum ModerationSource {
+  AUTO
+  HUMAN
+}
+
+enum ModerationDecision {
+  APPROVED
+  REJECTED
+}
+
+enum EncodingJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETE
+  ERROR
+}
+
+enum PlayCompletionStatus {
+  FULL
+  PARTIAL
+}
+
+enum PaymentStatus {
+  PENDING
+  FUNDED
+  FAILED
+  REFUNDED
+}
+
+// Identity is shared across employees, doctors, advertisers and vendors.
+// Roles are managed by API; permissions are seeded by application code.
+model User {
+  id                  String     @id @default(uuid())
+  email               String     @unique
+  passwordHash        String     @map("password_hash")
+  status              UserStatus @default(ACTIVE)
+  emailVerifiedAt     DateTime?  @map("email_verified_at")
+  mfaStatus           MfaStatus  @default(DISABLED) @map("mfa_status")
+  failedLoginAttempts Int        @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime?  @map("locked_until")
+  failedMfaAttempts   Int        @default(0) @map("failed_mfa_attempts")
+  mfaLockedUntil      DateTime?  @map("mfa_locked_until")
+  mfaDisabledAt       DateTime?  @map("mfa_disabled_at")
+  lastLoginAt         DateTime?  @map("last_login_at")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+
+  employee            PlatformEmployee?
+  clinic              Clinic?
+  advertiser          Advertiser?
+  vendor              Vendor?
+  roles               UserRole[]
+  totp                UserTotp?
+  mfaChallenges       MfaChallenge[]
+  recoveryCodes       MfaRecoveryCode[]
+  sessions            AuthSession[]
+  auditLogs           AuditLog[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@index([status])
+  @@map("users")
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  code        String           @unique
+  name        String
+  description String?
+  isActive    Boolean          @default(true) @map("is_active")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  code        String           @unique
+  module      String
+  action      String
+  description String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  roles       RolePermission[]
+
+  @@unique([module, action])
+  @@map("permissions")
+}
+
+model UserRole {
+  userId     String   @map("user_id")
+  roleId     String   @map("role_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id")
+  permissionId String     @map("permission_id")
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+// TOTP secret must be encrypted in application code (e.g. KMS envelope encryption).
+// New accounts enroll first. An explicit opt-out is recorded in User.mfaDisabledAt.
+model UserTotp {
+  id               String    @id @default(uuid())
+  userId           String    @unique @map("user_id")
+  secretEncrypted  String    @map("secret_encrypted")
+  verifiedAt       DateTime? @map("verified_at")
+  lastUsedTimeStep BigInt?   @map("last_used_time_step")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_totp")
+}
+
+// Store only hashed random challenge tokens. Challenges are short lived.
+model MfaChallenge {
+  id              String              @id @default(uuid())
+  userId          String              @map("user_id")
+  tokenHash       String              @unique @map("token_hash")
+  expiresAt       DateTime            @map("expires_at")
+  consumedAt      DateTime?           @map("consumed_at")
+  attemptCount    Int                 @default(0) @map("attempt_count")
+  purpose         MfaChallengePurpose @default(LOGIN)
+  secretEncrypted String?             @map("secret_encrypted")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("mfa_challenges")
+}
+
+model MfaRecoveryCode {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  codeHash  String    @unique @map("code_hash")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mfa_recovery_codes")
+}
+
+model AuthSession {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  mfaVerifiedAt    DateTime? @map("mfa_verified_at")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@map("auth_sessions")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum MfaStatus {
+  DISABLED
+  PENDING_SETUP
+  ENABLED
+}
+
+enum MfaChallengePurpose {
+  ENROLLMENT
+  LOGIN
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("password_reset_tokens")
+}

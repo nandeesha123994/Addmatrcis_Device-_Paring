@@ -1,0 +1,4 @@
+subjectAltName = IP:192.168.0.130
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth

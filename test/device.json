@@ -1,0 +1,6 @@
+{
+  "deviceId": "test-device-001",
+  "platform": "ANDROID_TV",
+  "appVersion": "1.0.0",
+  "pairingStatus": "PENDING"
+}
