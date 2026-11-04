@@ -8,7 +8,7 @@ const { promisify } = require("util");
 const execFileAsync = promisify(execFile);
 
 const OPENSSL_PATH =
-  process.env.OPENSSL_PATH || "C:\Program Files\OpenSSL-Win64\bin\openssl.exe";
+  process.env.OPENSSL_PATH || "C:/Program Files/OpenSSL-Win64/bin/openssl.exe";
 
 const CA_KEY_PATH = path.resolve(".keys/device-ca.key");
 const CA_CERT_PATH = path.resolve(".keys/device-ca.crt");

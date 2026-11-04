@@ -10,11 +10,11 @@ const {
   hashPairingCode,
 } = require("../utils/pairingCode");
 
-// Pairing code expires in 5 minutes
-const PAIRING_CODE_EXPIRY = 300;
+// Pairing code expires in 20 minutes
+const PAIRING_CODE_EXPIRY = 1200;
 
-// Pairing session expires in 15 minutes
-const PAIRING_SESSION_EXPIRY = 900;
+// Pairing session expires in 20 minutes
+const PAIRING_SESSION_EXPIRY = 1200;
 
 // Safely release only the lock owned by this request
 const RELEASE_LOCK_SCRIPT = `  if redis.call("GET", KEYS[1]) == ARGV[1] then
